@@ -21,6 +21,9 @@
                 "-mtp=soft",
                 "-fPIE"
             ],
+            "forcedInclude": [
+                "${workspaceFolder}/.vscode/intellisense-switch.h"
+            ],
             "cStandard": "gnu17",
             "cppStandard": "gnu++20",
             "intelliSenseMode": "linux-gcc-arm64"

@@ -14,3 +14,5 @@ deko3d             0.5.0-1         # GPU API (needed for the GPU backend work)
 uam                1.1.0-1         # deko3d shader compiler
 switch-cmake       1.5.2-1         # CMake toolchain (needed to cross-compile llama.cpp)
 devkitA64-gdb      14.1-1          # debugging over GDB stub (optional but handy)
+switch-sdl2        2.28.5-4        # UI: window, rendering, input
+switch-sdl2_ttf    2.22.0-2        # UI: TrueType font rendering

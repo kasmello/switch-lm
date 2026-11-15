@@ -65,7 +65,9 @@ CXXFLAGS := $(CFLAGS) -std=gnu++20
 ASFLAGS	:=	-g $(ARCH)
 LDFLAGS	=	-specs=$(DEVKITPRO)/libnx/switch.specs -g $(ARCH) -Wl,-Map,$(notdir $*.map)
 
-LIBS	:= -lnx
+# SDL2 + SDL2_ttf link flags come from the Switch pkg-config (they pull in EGL, freetype, etc.)
+PKGCONF	:= $(DEVKITPRO)/portlibs/switch/bin/aarch64-none-elf-pkg-config
+LIBS	:= $(shell $(PKGCONF) --libs SDL2_ttf sdl2 2>/dev/null) -lnx
 
 #---------------------------------------------------------------------------------
 # list of directories containing libraries, this must be the top level containing

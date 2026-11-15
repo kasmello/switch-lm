@@ -25,8 +25,12 @@ make setup        # same as: scripts/setup.sh
 
 1. Install **devkitPro pacman** (`dkp-pacman`) if missing, using the official installer
    (a `.pkg` on macOS, the apt.devkitpro.org script on Debian/Ubuntu).
-2. Install the devkitPro packages listed in [`dkp-packages.txt`](dkp-packages.txt):
-   `switch-dev`, `deko3d`, `uam`, `switch-cmake`, `devkitA64-gdb`.
+2. Install the devkitPro packages listed in [`dkp-packages.txt`](dkp-packages.txt), the
+   authoritative list (if you add a package, add it there):
+   - **Toolchain and SDK:** `switch-dev` (which includes `devkitA64`, `libnx`, `switch-tools`)
+   - **UI:** `switch-sdl2`, `switch-sdl2_ttf`
+   - **GPU:** `deko3d`, `uam` (shader compiler)
+   - **Build and debug:** `switch-cmake` (for cross-compiling llama.cpp), `devkitA64-gdb`
 3. Check the `DEVKITPRO` environment variable.
 4. Install host tools if missing: `cmake`, `clang-format`.
 5. Turn on the repo's git hooks (`git config core.hooksPath .githooks`).
