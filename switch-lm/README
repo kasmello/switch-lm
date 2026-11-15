@@ -1,0 +1,44 @@
+## Compiling
+
+Run 
+
+```make```
+
+## Edit Output Settings
+
+In the Makefilem, there are a bunch of files we can edit to change the name/icon of the output
+
+## Makefile variables
+
+| Variable | Description |
+|---|---|
+| `TARGET` | Name of the output |
+| `BUILD` | Directory where object files and intermediate files go |
+| `SOURCES` | Directories containing source code |
+| `DATA` | Directories containing data files |
+| `INCLUDES` | Directories containing header files |
+| `ROMFS` | Directory of data added to RomFS, relative to the Makefile *(optional)* |
+
+## Flags
+
+| Flag | Effect |
+|---|---|
+| `NO_ICON` | If set to anything, no icon is used |
+| `NO_NACP` | If set to anything, no `.nacp` file is generated |
+
+## NACP metadata (all optional)
+
+| Variable | Description |
+|---|---|
+| `APP_TITLE` | App name stored in the `.nacp` |
+| `APP_AUTHOR` | App author stored in the `.nacp` |
+| `APP_VERSION` | App version stored in the `.nacp` |
+| `APP_TITLEID` | Title ID stored in the `.nacp` |
+
+## Icon
+
+`ICON` is the icon's filename (`.jpg`), relative to the project folder. If it's not set, the build tries these in order:
+
+1. `<Project name>.jpg`
+2. `icon.jpg`
+3. `<libnx folder>/default_icon.jpg`

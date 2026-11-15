@@ -1,0 +1,6 @@
+artifacts/
+build/
+*.elf
+*.nacp
+*.nro
+.DS_STORE
