@@ -42,7 +42,7 @@ fi
 # 5. clang-format on staged C/C++ files (skipped with a note if clang-format isn't installed)
 SRC=()
 for f in "${FILES[@]}"; do
-    case "$f" in switch-lm/third_party/*) continue ;; esac
+    case "$f" in third_party/*) continue ;; esac
     case "$f" in *.c|*.h|*.cpp|*.hpp|*.cc) SRC+=("$f") ;; esac
 done
 if (( ${#SRC[@]} )); then

@@ -32,7 +32,7 @@ make setup        # same as: scripts/setup.sh
    - **GPU:** `deko3d`, `uam` (shader compiler)
    - **Build and debug:** `switch-cmake` (for cross-compiling llama.cpp), `devkitA64-gdb`
 3. Check the `DEVKITPRO` environment variable.
-4. Install host tools if missing: `cmake`, `clang-format`.
+4. Install host tools if missing: `cmake`, `clang-format` (and, on macOS, Homebrew `sdl2` + `sdl2_ttf` for `make mac`).
 5. Turn on the repo's git hooks (`git config core.hooksPath .githooks`).
 
 Then add this line to your `~/.zshrc` (or `~/.bashrc`) and open a new terminal:
@@ -69,15 +69,36 @@ IntelliSense is preconfigured in `.vscode/c_cpp_properties.json` with the
 
 | Command | What it does |
 |---|---|
-| `make` | Builds `switch-lm/switch-lm.nro` |
+| `make` | Builds `switch-lm.nro` |
 | `make run` | Builds, then sends the `.nro` to the Switch over Wi-Fi and shows its output in your terminal |
 | `make run SWITCH_IP=192.168.1.50` | Same, if the Switch isn't found automatically |
-| `make clean` | Removes build outputs |
+| `make mac` | Builds a desktop version at `build-mac/switch-lm`, with no Switch needed |
+| `make mac-run` | Builds and runs the desktop version |
+| `make clean` | Removes build outputs (Switch and desktop) |
 
 **Running on the Switch** (needs Atmosphère + hbmenu):
 
 - **Over Wi-Fi:** open hbmenu, press **Y** (netloader), then `make run`.
-- **From the SD card:** copy `switch-lm/switch-lm.nro` to `SD:/switch/`. Launch hbmenu by **holding R while starting any game** (this gives the app full memory), then pick switch-lm.
+- **From the SD card:** copy `switch-lm.nro` to `SD:/switch/`. Launch hbmenu by **holding R while starting any game** (this gives the app full memory), then pick switch-lm.
+
+### Running on your Mac (desktop build)
+
+For everyday work on the UI and app logic, run the app as a normal Mac program instead of sending it to the Switch each time:
+
+```sh
+make mac-run      # needs Homebrew SDL2: make setup installs it, or: brew install sdl2 sdl2_ttf
+```
+
+It's the same source code, built with your Mac's compiler. It opens a 1280×720 resizable window, which draws
+the same 1920×1080 frame the Switch shows, scaled down. Quit with **Esc** or by closing the window. You get fast
+rebuilds and a normal debugger (`lldb build-mac/switch-lm`).
+
+How it works: all Switch-only (libnx) code lives in `source/platform.cpp`, inside `#ifdef __SWITCH__`, with
+simple desktop stand-ins in the `#else` branch. **Keep it that way.** New Switch-only calls (software keyboard,
+`sdmc:/` paths, romfs…) go in `platform.cpp` behind a function in `platform.hpp`, not in `main.cpp` or `ui.cpp`.
+
+What the desktop build **can't** tell you: Switch memory limits, Switch speed, and anything GPU-specific
+(deko3d). Test those on the console with `make run`.
 
 ## Git hooks
 
@@ -95,19 +116,19 @@ To skip it once in an emergency: `git commit --no-verify`.
 
 ```
 .
-├── Makefile             # top-level shortcuts: setup / doctor / build / run / clean
+├── Makefile             # all build targets (Switch build is the devkitPro libnx template)
+├── source/              # app source code (Switch-only code lives in platform.cpp)
 ├── dkp-packages.txt     # devkitPro package manifest
 ├── scripts/setup.sh     # dev environment installer / checker
 ├── .githooks/           # git hooks (pre-commit)
-├── .clang-format        # C/C++ style
-└── switch-lm/           # the homebrew app
-    ├── Makefile         # libnx build (based on the devkitPro template)
-    └── source/          # app source code
+└── .clang-format        # C/C++ style
 ```
+
+Build outputs (ignored by git): `build/` and `switch-lm.{elf,nacp,nro}` for the Switch, `build-mac/` for the desktop build.
 
 ---
 
-## App Makefile reference (`switch-lm/Makefile`)
+## Makefile reference
 
 ### Makefile variables
 

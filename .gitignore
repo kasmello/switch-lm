@@ -7,3 +7,4 @@ build/
 *.dksh
 *.gguf
 .DS_Store
+build-mac/

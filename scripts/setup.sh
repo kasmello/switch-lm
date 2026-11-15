@@ -138,6 +138,16 @@ for tool in git make cmake clang-format; do
     fi
 done
 
+# ---------- 4b. desktop build libraries (make mac) ----------
+if [[ "$PLATFORM" == macos ]]; then
+    step "Desktop build libraries (Homebrew, for make mac)"
+    for f in sdl2 sdl2_ttf; do
+        if have brew && brew list --versions "$f" >/dev/null 2>&1; then ok "$f"
+        elif (( CHECK_ONLY )); then warn "$f missing (only needed for make mac)"
+        else warn "installing $f"; host_install "$f" || warn "couldn't install $f; make mac won't work"; fi
+    done
+fi
+
 # ---------- 5. git hooks ----------
 step "Git hooks"
 if git -C "$ROOT" rev-parse --git-dir >/dev/null 2>&1; then
