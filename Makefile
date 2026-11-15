@@ -46,9 +46,9 @@ export DEVKITPRO
 #---------------------------------------------------------------------------------
 TARGET		:=	switch-lm
 BUILD		:=	build
-SOURCES		:=	source
+SOURCES		:=	source third_party/imgui
 DATA		:=	data
-INCLUDES	:=	include
+INCLUDES	:=	include third_party/imgui third_party/imgui/backends
 APP_TITLE	:=	SwitchLM
 APP_AUTHOR	:=	Karmel
 #ROMFS	:=	romfs
@@ -72,6 +72,10 @@ MAC_SRC     := $(foreach dir,$(SOURCES),$(wildcard $(dir)/*.cpp))
 MAC_HDR     := $(foreach dir,$(SOURCES),$(wildcard $(dir)/*.hpp))
 SDL2_CONFIG := $(firstword $(filter-out $(DEVKITPRO)/%,$(shell which -a sdl2-config 2>/dev/null)))
 MAC_SDL     := $(if $(SDL2_CONFIG),-I$(shell $(SDL2_CONFIG) --prefix)/include $(shell $(SDL2_CONFIG) --cflags --libs))
+# Use the macOS SDK's C++ headers explicitly. Some Command Line Tools installs leave an incomplete
+# usr/include/c++/v1 behind that clang searches first ("'cstddef' file not found").
+MAC_SDK     := $(if $(filter Darwin,$(shell uname -s)),$(shell xcrun --show-sdk-path 2>/dev/null))
+MAC_STDCXX  := $(if $(wildcard $(MAC_SDK)/usr/include/c++/v1/cstddef),-nostdinc++ -isystem $(MAC_SDK)/usr/include/c++/v1)
 
 .PHONY: setup doctor run mac mac-run clean
 
@@ -90,7 +94,7 @@ $(MAC_BIN): $(MAC_SRC) $(MAC_HDR)
 	@test -n "$(SDL2_CONFIG)" || { echo "sdl2-config not found: run 'brew install sdl2 sdl2_ttf' (or make setup)"; exit 1; }
 	@mkdir -p $(MAC_OUT)
 	@echo "building $@"
-	@c++ -std=gnu++20 -g -O0 -Wall $(MAC_SRC) -o $@ $(MAC_SDL)
+	@c++ -std=gnu++20 -g -O0 -Wall $(MAC_STDCXX) $(foreach dir,$(INCLUDES),-I$(dir)) $(MAC_SRC) -o $@ $(MAC_SDL)
 
 mac-run: mac
 	@./$(MAC_BIN)
@@ -99,6 +103,13 @@ clean:
 	@echo clean ...
 	@rm -fr $(BUILD) $(MAC_OUT) $(TARGET).nro $(TARGET).nacp $(TARGET).elf \
 		$(TARGET).nsp $(TARGET).nso $(TARGET).npdm
+
+# Dear ImGui is a git submodule; a clone without --recurse-submodules has an empty folder.
+ifeq ($(wildcard third_party/imgui/imgui.h),)
+ifneq ($(filter-out setup doctor clean,$(or $(MAKECMDGOALS),all)),)
+$(error third_party/imgui is empty. Run 'git submodule update --init' (or make setup))
+endif
+endif
 
 # Without devkitPro, only the helper targets above can run.
 ifeq ($(DKP_RULES),)
@@ -127,13 +138,20 @@ CFLAGS	:=	-g -Wall -O2 -ffunction-sections \
 
 CFLAGS	+=	$(INCLUDE) -D__SWITCH__
 
+# PKGCONF is devkitPro's Switch pkg-config. --cflags adds include/SDL2, which ImGui's SDL2
+# backends need for <SDL.h>.
+PKGCONF	:= $(DEVKITPRO)/portlibs/switch/bin/aarch64-none-elf-pkg-config
+CFLAGS	+=	$(shell $(PKGCONF) --cflags sdl2 2>/dev/null)
+
+# ImGui's default "open URL in shell" helper uses fork/execvp, which Horizon doesn't have.
+CFLAGS	+=	-DIMGUI_DISABLE_DEFAULT_SHELL_FUNCTIONS
+
 CXXFLAGS := $(CFLAGS) -std=gnu++20
 
 ASFLAGS	:=	-g $(ARCH)
 LDFLAGS	=	-specs=$(DEVKITPRO)/libnx/switch.specs -g $(ARCH) -Wl,-Map,$(notdir $*.map)
 
 # SDL2 + SDL2_ttf link flags come from the Switch pkg-config (they pull in EGL, freetype, etc.)
-PKGCONF	:= $(DEVKITPRO)/portlibs/switch/bin/aarch64-none-elf-pkg-config
 LIBS	:= $(shell $(PKGCONF) --libs SDL2_ttf sdl2 2>/dev/null) -lnx
 
 #---------------------------------------------------------------------------------

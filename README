@@ -16,7 +16,7 @@ PLEASE NOTE THIS SECTION IS SLOPPED BY AI AND HAS NOT BEEN TESTED ON ANOTHER MAC
 ### One-time setup
 
 ```sh
-git clone <repo-url> switch-lm
+git clone --recurse-submodules <repo-url> switch-lm
 cd switch-lm
 make setup        # same as: scripts/setup.sh
 ```
@@ -33,7 +33,8 @@ make setup        # same as: scripts/setup.sh
    - **Build and debug:** `switch-cmake` (for cross-compiling llama.cpp), `devkitA64-gdb`
 3. Check the `DEVKITPRO` environment variable.
 4. Install host tools if missing: `cmake`, `clang-format` (and, on macOS, Homebrew `sdl2` + `sdl2_ttf` for `make mac`).
-5. Turn on the repo's git hooks (`git config core.hooksPath .githooks`).
+5. Fetch git submodules (`third_party/imgui`), in case you cloned without `--recurse-submodules`.
+6. Turn on the repo's git hooks (`git config core.hooksPath .githooks`).
 
 Then add this line to your `~/.zshrc` (or `~/.bashrc`) and open a new terminal:
 
@@ -118,6 +119,7 @@ To skip it once in an emergency: `git commit --no-verify`.
 .
 ├── Makefile             # all build targets (Switch build is the devkitPro libnx template)
 ├── source/              # app source code (Switch-only code lives in platform.cpp)
+├── third_party/imgui/   # Dear ImGui, git submodule pinned to v1.93.0
 ├── dkp-packages.txt     # devkitPro package manifest
 ├── scripts/setup.sh     # dev environment installer / checker
 ├── .githooks/           # git hooks (pre-commit)
@@ -125,6 +127,22 @@ To skip it once in an emergency: `git commit --no-verify`.
 ```
 
 Build outputs (ignored by git): `build/` and `switch-lm.{elf,nacp,nro}` for the Switch, `build-mac/` for the desktop build.
+
+## UI (Dear ImGui)
+
+The UI is [Dear ImGui](https://github.com/ocornut/imgui), drawn through SDL2 (backends
+`imgui_impl_sdl2` + `imgui_impl_sdlrenderer2`, compiled via `source/imgui_backends.cpp`). All UI
+code lives in `source/ui.cpp`.
+
+- **Learning it:** tick **"Show ImGui demo window"** in the app. It shows every widget, and
+  `third_party/imgui/imgui_demo.cpp` has the code behind each one. The wiki, FAQ and docs are at
+  github.com/ocornut/imgui.
+- **Fonts:** on the Switch, the system font (via libnx `pl`). On desktop, `Roboto-Medium.ttf` from
+  `third_party/imgui/misc/fonts/`.
+- **Text input:** the Switch has no keyboard, so typing will use the system software keyboard
+  (`swkbd`, to be added in `platform.cpp`). ImGui text boxes work in the desktop build.
+- **Updating ImGui:** `cd third_party/imgui && git fetch --tags && git checkout <tag>`, then commit
+  the submodule change. Backend APIs change between versions, so rebuild both `make` and `make mac`.
 
 ---
 

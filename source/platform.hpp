@@ -1,8 +1,14 @@
 #pragma once
 
+#include <cstddef>
+
 // Platform module: the only place with Switch-specific (libnx) code.
 // On the Switch it uses libnx; on a desktop build (make mac) it uses simple stand-ins.
 
 void platform_init();
 bool platform_running(); // false when the app should quit (Home menu close, + button)
 void platform_exit();
+
+// The system UI font as a TTF in memory (owned by the system; don't free it).
+// Returns false where there is none (desktop build), so the caller should load its own font.
+bool platform_font(void** data, std::size_t* size);

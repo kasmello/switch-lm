@@ -148,6 +148,12 @@ if [[ "$PLATFORM" == macos ]]; then
     done
 fi
 
+# ---------- 4c. git submodules (third_party/imgui) ----------
+step "Git submodules"
+if [[ -f "$ROOT/third_party/imgui/imgui.h" ]]; then ok "third_party/imgui"
+elif (( CHECK_ONLY )); then fail "third_party/imgui is empty (run: git submodule update --init)"; MISSING=1
+else git -C "$ROOT" submodule update --init --recursive && ok "fetched submodules"; fi
+
 # ---------- 5. git hooks ----------
 step "Git hooks"
 if git -C "$ROOT" rev-parse --git-dir >/dev/null 2>&1; then

@@ -8,3 +8,4 @@ build/
 *.gguf
 .DS_Store
 build-mac/
+imgui.ini

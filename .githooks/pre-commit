@@ -14,6 +14,9 @@ while IFS= read -r -d '' f; do FILES+=("$f"); done < <(git diff --cached --name-
 (( ${#FILES[@]} )) || exit 0
 
 for f in "${FILES[@]}"; do
+    # Submodules (e.g. third_party/imgui) are commit pointers, not files: nothing to check.
+    [[ "$(git ls-files -s -- "$f" | awk '{print $1}')" == 160000 ]] && continue
+
     # 1. build outputs and model files
     case "$f" in
         *.nro|*.nso|*.nacp|*.elf|*.dksh|*.gguf|*.o|*.a|*/build/*|build/*)
