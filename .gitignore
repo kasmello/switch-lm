@@ -3,4 +3,7 @@ build/
 *.elf
 *.nacp
 *.nro
-.DS_STORE
+*.o
+*.dksh
+*.gguf
+.DS_Store

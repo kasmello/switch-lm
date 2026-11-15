@@ -1,14 +1,111 @@
-## Compiling
+# switch-lm
 
-Run 
+Nintendo Switch homebrew (libnx) for running language models on the console.
 
-```make```
+## Dev environment setup
 
-## Edit Output Settings
+PLEASE NOTE THIS SECTION IS SLOPPED BY AI AND HAS NOT BEEN TESTED ON ANOTHER MACHINE
 
-In the Makefilem, there are a bunch of files we can edit to change the name/icon of the output
+### Requirements
 
-## Makefile variables
+- **macOS** (Intel or Apple Silicon) or **Debian/Ubuntu Linux**. These can be set up automatically.
+- Other platforms (Windows, Arch, Fedora…) need devkitPro installed by hand first. See
+  [devkitPro pacman](https://devkitpro.org/wiki/devkitPro_pacman), then run the setup script below.
+- `git`, `curl`, and `sudo` access. On macOS, [Homebrew](https://brew.sh) is used for host tools.
+
+### One-time setup
+
+```sh
+git clone <repo-url> switch-lm
+cd switch-lm
+make setup        # same as: scripts/setup.sh
+```
+
+`make setup` is safe to re-run. It skips anything already installed. It will:
+
+1. Install **devkitPro pacman** (`dkp-pacman`) if missing, using the official installer
+   (a `.pkg` on macOS, the apt.devkitpro.org script on Debian/Ubuntu).
+2. Install the devkitPro packages listed in [`dkp-packages.txt`](dkp-packages.txt):
+   `switch-dev`, `deko3d`, `uam`, `switch-cmake`, `devkitA64-gdb`.
+3. Check the `DEVKITPRO` environment variable.
+4. Install host tools if missing: `cmake`, `clang-format`.
+5. Turn on the repo's git hooks (`git config core.hooksPath .githooks`).
+
+Then add this line to your `~/.zshrc` (or `~/.bashrc`) and open a new terminal:
+
+```sh
+export DEVKITPRO=/opt/devkitpro
+```
+
+The Makefiles fall back to `/opt/devkitpro` if this isn't set, but other tools (CMake, VS Code) expect it.
+
+### Check your environment
+
+```sh
+make doctor       # same as: scripts/setup.sh --check — reports only, changes nothing
+```
+
+It warns if an installed package version differs from the one in `dkp-packages.txt` (the versions
+this project was last tested with). devkitPro only serves the latest packages, so a different
+version usually still works.
+
+### Editor (VS Code)
+
+Install the **C/C++** extension (`ms-vscode.cpptools`). Open the **repo root** as the workspace.
+IntelliSense is preconfigured in `.vscode/c_cpp_properties.json` with the
+**DKP aarch64** configuration. If `#include <switch.h>` shows an error:
+
+- pick **DKP aarch64** in the status bar,
+- run **C/C++: Change Configuration Provider → None** (CMake Tools can take over IntelliSense),
+- then run **Developer: Reload Window**.
+
+> The config uses `/opt/devkitpro` paths. On Windows, change them to `C:/devkitPro/...`.
+
+## Building and running
+
+| Command | What it does |
+|---|---|
+| `make` | Builds `switch-lm/switch-lm.nro` |
+| `make run` | Builds, then sends the `.nro` to the Switch over Wi-Fi and shows its output in your terminal |
+| `make run SWITCH_IP=192.168.1.50` | Same, if the Switch isn't found automatically |
+| `make clean` | Removes build outputs |
+
+**Running on the Switch** (needs Atmosphère + hbmenu):
+
+- **Over Wi-Fi:** open hbmenu, press **Y** (netloader), then `make run`.
+- **From the SD card:** copy `switch-lm/switch-lm.nro` to `SD:/switch/`. Launch hbmenu by **holding R while starting any game** (this gives the app full memory), then pick switch-lm.
+
+## Git hooks
+
+The pre-commit hook (`.githooks/pre-commit`) checks only the files you're committing. It blocks:
+
+- build outputs and model files (`.nro`, `.elf`, `.nacp`, `.dksh`, `.gguf`, `.o`, `.a`, `build/`),
+- files larger than 1 MB,
+- leftover merge-conflict markers and trailing whitespace,
+- C/C++ files that don't match `.clang-format`. This check is skipped if `clang-format` isn't installed.
+  Fix with `clang-format -i <files>`.
+
+To skip it once in an emergency: `git commit --no-verify`.
+
+## Project layout
+
+```
+.
+├── Makefile             # top-level shortcuts: setup / doctor / build / run / clean
+├── dkp-packages.txt     # devkitPro package manifest
+├── scripts/setup.sh     # dev environment installer / checker
+├── .githooks/           # git hooks (pre-commit)
+├── .clang-format        # C/C++ style
+└── switch-lm/           # the homebrew app
+    ├── Makefile         # libnx build (based on the devkitPro template)
+    └── source/          # app source code
+```
+
+---
+
+## App Makefile reference (`switch-lm/Makefile`)
+
+### Makefile variables
 
 | Variable | Description |
 |---|---|
@@ -19,14 +116,14 @@ In the Makefilem, there are a bunch of files we can edit to change the name/icon
 | `INCLUDES` | Directories containing header files |
 | `ROMFS` | Directory of data added to RomFS, relative to the Makefile *(optional)* |
 
-## Flags
+### Flags
 
 | Flag | Effect |
 |---|---|
 | `NO_ICON` | If set to anything, no icon is used |
 | `NO_NACP` | If set to anything, no `.nacp` file is generated |
 
-## NACP metadata (all optional)
+### NACP metadata (all optional)
 
 | Variable | Description |
 |---|---|
@@ -35,7 +132,7 @@ In the Makefilem, there are a bunch of files we can edit to change the name/icon
 | `APP_VERSION` | App version stored in the `.nacp` |
 | `APP_TITLEID` | Title ID stored in the `.nacp` |
 
-## Icon
+### Icon
 
 `ICON` is the icon's filename (`.jpg`), relative to the project folder. If it's not set, the build tries these in order:
 

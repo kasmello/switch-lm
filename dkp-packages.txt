@@ -1,0 +1,16 @@
+# devkitPro packages required to build switch-lm.
+# Installed by scripts/setup.sh with `dkp-pacman -S --needed`.
+#
+# Format: <package> [known-good-version]
+# The version is the one this project was last verified with. It is NOT enforced
+# (devkitPro's repos only serve the latest), but `scripts/setup.sh --check`
+# warns when an installed version differs.
+
+switch-dev                         # meta-group: devkitA64, libnx, switch-tools, ...
+devkitA64          r30-1
+libnx              4.12.0-1
+switch-tools       1.13.1-1
+deko3d             0.5.0-1         # GPU API (needed for the GPU backend work)
+uam                1.1.0-1         # deko3d shader compiler
+switch-cmake       1.5.2-1         # CMake toolchain (needed to cross-compile llama.cpp)
+devkitA64-gdb      14.1-1          # debugging over GDB stub (optional but handy)

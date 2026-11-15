@@ -2,6 +2,10 @@
 .SUFFIXES:
 #---------------------------------------------------------------------------------
 
+# Default to the standard install location so a fresh shell without DEVKITPRO still builds.
+DEVKITPRO ?= /opt/devkitpro
+export DEVKITPRO
+
 ifeq ($(strip $(DEVKITPRO)),)
 $(error "Please set DEVKITPRO in your environment. export DEVKITPRO=<path to>/devkitpro")
 endif

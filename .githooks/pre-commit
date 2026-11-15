@@ -1,0 +1,63 @@
+#!/usr/bin/env bash
+# switch-lm pre-commit hook. Enabled by scripts/setup.sh (git config core.hooksPath .githooks).
+# Checks only the files staged for this commit. Bypass in an emergency with: git commit --no-verify
+set -uo pipefail
+
+MAX_KB=1024   # refuse files larger than this (models and binaries belong outside git)
+status=0
+err() { printf '\e[31mpre-commit:\e[0m %s\n' "$*" >&2; status=1; }
+
+# Staged files that are added/copied/modified/renamed (not deleted). NUL-separated for safety.
+# (while-read instead of mapfile: macOS ships bash 3.2)
+FILES=()
+while IFS= read -r -d '' f; do FILES+=("$f"); done < <(git diff --cached --name-only --diff-filter=ACMR -z)
+(( ${#FILES[@]} )) || exit 0
+
+for f in "${FILES[@]}"; do
+    # 1. build outputs and model files
+    case "$f" in
+        *.nro|*.nso|*.nacp|*.elf|*.dksh|*.gguf|*.o|*.a|*/build/*|build/*)
+            err "$f looks like a build output or model file; don't commit it (add it to .gitignore)" ;;
+    esac
+
+    # 2. file size (size of the staged blob, not the working copy)
+    size=$(git cat-file -s ":$f" 2>/dev/null || echo 0)
+    (( size > MAX_KB * 1024 )) && err "$f is $((size / 1024)) KB (limit ${MAX_KB} KB)"
+
+    # Text checks below only apply to text files.
+    git diff --cached --numstat -- "$f" | grep -q '^-' && continue
+
+    # 3. leftover merge-conflict markers
+    if git show ":$f" | grep -nE '^(<<<<<<< |=======$|>>>>>>> )' >/dev/null; then
+        err "$f contains merge-conflict markers"
+    fi
+done
+
+# 4. trailing whitespace / whitespace errors in the staged changes
+if ! git diff --cached --check >/dev/null; then
+    err "whitespace errors in staged changes:"
+    git diff --cached --check >&2
+fi
+
+# 5. clang-format on staged C/C++ files (skipped with a note if clang-format isn't installed)
+SRC=()
+for f in "${FILES[@]}"; do
+    case "$f" in switch-lm/third_party/*) continue ;; esac
+    case "$f" in *.c|*.h|*.cpp|*.hpp|*.cc) SRC+=("$f") ;; esac
+done
+if (( ${#SRC[@]} )); then
+    if command -v clang-format >/dev/null 2>&1; then
+        bad=()
+        for f in "${SRC[@]}"; do
+            git show ":$f" | clang-format --assume-filename="$f" --dry-run -Werror >/dev/null 2>&1 || bad+=("$f")
+        done
+        if (( ${#bad[@]} )); then
+            err "not clang-formatted: ${bad[*]}"
+            printf '  fix with: clang-format -i %s && git add %s\n' "${bad[*]}" "${bad[*]}" >&2
+        fi
+    else
+        printf 'pre-commit: clang-format not installed, skipping format check (scripts/setup.sh installs it)\n' >&2
+    fi
+fi
+
+exit $status
