@@ -14,7 +14,7 @@
                 "__SWITCH__",
                 "__aarch64__"
             ],
-            "compilerPath": "/opt/devkitpro/devkitA64/bin/aarch64-none-elf-gcc",
+            "compilerPath": "/opt/devkitpro/devkitA64/bin/aarch64-none-elf-g++",
             "compilerArgs": [
                 "-march=armv8-a+crc+crypto",
                 "-mtune=cortex-a57",
