@@ -4,6 +4,9 @@
 #include <switch.h>
 #include <unistd.h> // close()
 
+#include <cstring>
+#include <vector>
+
 namespace
 {
 PadState g_pad;
@@ -53,6 +56,38 @@ bool platform_font(void** data, std::size_t* size)
     return true;
 }
 
+bool platform_has_keyboard()
+{
+    return true;
+}
+
+bool platform_keyboard(char* text, std::size_t textSize)
+{
+    if (textSize < 2)
+        return false;
+
+    SwkbdConfig kbd;
+    if (R_FAILED(swkbdCreate(&kbd, 0)))
+        return false;
+    swkbdConfigMakePresetDefault(&kbd);
+    swkbdConfigSetInitialText(&kbd, text);
+    swkbdConfigSetGuideText(&kbd, "Type a message");
+    swkbdConfigSetStringLenMax(&kbd, textSize - 1);
+    swkbdConfigSetTextDrawType(&kbd, SwkbdTextDrawType_Box); // multi-line box
+
+    // Write into a scratch buffer so cancelling doesn't clobber the caller's text.
+    std::vector<char> out(textSize, '\0');
+    const bool ok = R_SUCCEEDED(swkbdShow(&kbd, out.data(), out.size())); // fails on cancel
+    swkbdClose(&kbd);
+
+    if (ok)
+    {
+        std::memcpy(text, out.data(), textSize);
+        text[textSize - 1] = '\0';
+    }
+    return ok;
+}
+
 #else // desktop build: the window's close button / Esc (handled in ui_poll) quits
 
 void platform_init()
@@ -69,6 +104,16 @@ void platform_exit()
 }
 
 bool platform_font(void**, std::size_t*)
+{
+    return false;
+}
+
+bool platform_has_keyboard()
+{
+    return false;
+}
+
+bool platform_keyboard(char*, std::size_t)
 {
     return false;
 }

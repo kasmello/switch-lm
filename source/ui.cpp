@@ -9,8 +9,10 @@
 #include <cstdio>
 #include <algorithm>
 #include <cctype>
+#include <cstring>
 
 #include "imgui.h"
+#include "imgui_internal.h" // ImGui::ClearActiveID
 #include "imgui_impl_sdl2.h"
 #include "imgui_impl_sdlrenderer2.h"
 
@@ -189,6 +191,16 @@ void draw_msx_box(char* buf, std::string& output, size_t bufSize, int& msgCount,
     const float boxH = textH + style.FramePadding.y * 2;
     ImGui::InputTextMultiline("##input", buf, bufSize, ImVec2(-FLT_MIN, boxH),
                               ImGuiInputTextFlags_WordWrap);
+    // On the Switch, tapping (or pressing A on) the box opens the system keyboard instead.
+    if (ImGui::IsItemActivated() && platform_has_keyboard())
+    {
+        platform_keyboard(buf, bufSize); // blocks until the keyboard closes
+        // Deactivate the box: an active InputText keeps its own copy of the text and would
+        // overwrite the keyboard's result next frame.
+        ImGui::ClearActiveID();
+        // The touch release happened while the keyboard was up, so ImGui never saw it.
+        ImGui::GetIO().AddMouseButtonEvent(0, false);
+    }
     if (!output.empty())
     {
         ImGui::TextWrapped("%s", output.c_str());
