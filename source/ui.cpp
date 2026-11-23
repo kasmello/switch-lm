@@ -1,9 +1,14 @@
 #include "ui.hpp"
+#include "llm.hpp"
 
 #include "platform.hpp"
 
 #include <SDL2/SDL.h>
+#include <cfloat>
+#include <string>
 #include <cstdio>
+#include <algorithm>
+#include <cctype>
 
 #include "imgui.h"
 #include "imgui_impl_sdl2.h"
@@ -37,7 +42,6 @@ void load_font(ImGuiIO& io)
         io.Fonts->AddFontFromFileTTF(kDesktopFont, kFontSize);
         return;
     }
-    SDL_Log("font not found (%s); using ImGui's built-in font", kDesktopFont);
     ImFontConfig cfg;
     cfg.SizePixels = kFontSize;
     io.Fonts->AddFontDefault(&cfg);
@@ -46,6 +50,11 @@ void load_font(ImGuiIO& io)
 
 bool ui_init()
 {
+    // Touchscreen: ImGui's SDL2 backend only reads mouse events, so SDL must turn touches into
+    // mouse events. The Switch SDL2 port turns that off when it starts (it sets
+    // SDL_TOUCH_MOUSE_EVENTS=0 at default priority); setting it here, before SDL_Init, wins.
+    SDL_SetHint(SDL_HINT_TOUCH_MOUSE_EVENTS, "1");
+
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMECONTROLLER) != 0)
     {
         SDL_Log("SDL_Init: %s", SDL_GetError());
@@ -122,6 +131,14 @@ bool ui_poll()
     while (SDL_PollEvent(&e))
     {
         ImGui_ImplSDL2_ProcessEvent(&e);
+
+        // A lifted finger leaves the (fake) mouse where it was, so the last widget touched would
+        // stay highlighted. Move the pointer off-screen after a touch ends. Only for real
+        // touchscreens: a Mac trackpad also sends finger events, but as an indirect device.
+        if (e.type == SDL_FINGERUP &&
+            SDL_GetTouchDeviceType(e.tfinger.touchId) == SDL_TOUCH_DEVICE_DIRECT)
+            ImGui::GetIO().AddMousePosEvent(-FLT_MAX, -FLT_MAX);
+
         if (e.type == SDL_QUIT)
             return false;
         if (e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_ESCAPE)
@@ -130,6 +147,61 @@ bool ui_poll()
     return true;
 }
 
+void add_msg_with_cap(int& msgCount, int& maxMessages)
+{
+    if (msgCount < maxMessages)
+    {
+        msgCount++;
+    }
+    else
+    {
+        SDL_Log("Maximum number of messages reached. Cannot add more messages.");
+    }
+}
+
+static bool is_blank(const char* s)
+{
+    for (; *s; ++s)
+        if (!std::isspace(static_cast<unsigned char>(*s)))
+            return false;
+    return true;
+}
+
+void draw_msx_box(char* buf, std::string& output, size_t bufSize, int& msgCount, int& maxMessages)
+{
+    const ImGuiStyle& style = ImGui::GetStyle();
+    const float lineH = ImGui::GetTextLineHeight();
+    const int minLines = 1, maxLines = 7;
+
+    const float boxW = ImGui::GetContentRegionAvail().x;
+    float wrapW = boxW - style.FramePadding.x * 2;
+
+    ImVec2 text = ImGui::CalcTextSize(buf, nullptr, false, wrapW);
+    float textH = text.y;
+    const size_t len = strlen(buf);
+    if (len > 0 && buf[len - 1] == '\n') // CalcTextSize doesn't count an empty last line
+        textH += lineH;
+
+    if (textH > lineH * maxLines)
+        textH = ImGui::CalcTextSize(buf, nullptr, false, wrapW - style.ScrollbarSize).y;
+
+    textH = std::clamp(textH, lineH * minLines, lineH * maxLines);
+    const float boxH = textH + style.FramePadding.y * 2;
+    ImGui::InputTextMultiline("##input", buf, bufSize, ImVec2(-FLT_MIN, boxH),
+                              ImGuiInputTextFlags_WordWrap);
+    if (!output.empty())
+    {
+        ImGui::TextWrapped("%s", output.c_str());
+    }
+
+    ImGui::BeginDisabled(is_blank(buf));
+    if (ImGui::Button("Send"))
+    {
+        add_msg_with_cap(msgCount, maxMessages);
+        output = dummy_message(buf);
+    }
+    ImGui::EndDisabled();
+}
 void ui_present()
 {
     ImGui_ImplSDLRenderer2_NewFrame();
@@ -143,10 +215,21 @@ void ui_present()
     ImGui::Begin("switch-lm", nullptr,
                  ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove |
                      ImGuiWindowFlags_NoBringToFrontOnFocus);
-    ImGui::Text("switch-lm");
-    ImGui::TextWrapped("Dear ImGui %s is running. The chat UI goes here.", ImGui::GetVersion());
-    ImGui::Checkbox("Show ImGui demo window", &g_showDemo);
-    ImGui::End();
+    ImGui::TextWrapped("Switch-LM 1.1.0\nPrototype SLM.\nDear ImGui %s", ImGui::GetVersion());
+    {
+        static int maxMessages = 10;
+        static int msgCount = 1;
+        static char text[10][500];
+        static std::string output[10];
+        for (int i = 0; i < msgCount; ++i)
+        {
+            ImGui::PushID(i);
+            draw_msx_box(text[i], output[i], IM_COUNTOF(text[i]), msgCount, maxMessages);
+            ImGui::PopID();
+        }
+        ImGui::Checkbox("Show ImGui demo window", &g_showDemo);
+        ImGui::End();
+    }
 
     if (g_showDemo)
         ImGui::ShowDemoWindow(&g_showDemo); // every widget, with the code behind it
