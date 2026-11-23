@@ -55,8 +55,10 @@ if (( ${#SRC[@]} )); then
             git show ":$f" | clang-format --assume-filename="$f" --dry-run -Werror >/dev/null 2>&1 || bad+=("$f")
         done
         if (( ${#bad[@]} )); then
+            for f in "${bad[@]}"; do [[ -f "$f" ]] && clang-format -i -- "$f"; done
             err "not clang-formatted: ${bad[*]}"
-            printf '  fix with: clang-format -i %s && git add %s\n' "${bad[*]}" "${bad[*]}" >&2
+            printf '  auto-fixed with: clang-format -i %s\n' "${bad[*]}" >&2
+            printf '  (working tree only, not staged) review with: git diff, then: git add %s\n' "${bad[*]}" >&2
         fi
     else
         printf 'pre-commit: clang-format not installed, skipping format check (scripts/setup.sh installs it)\n' >&2
