@@ -169,7 +169,18 @@ static bool is_blank(const char* s)
     return true;
 }
 
-void draw_msx_box(char* buf, std::string& output, size_t bufSize, int& msgCount, int& maxMessages)
+void draw_send_box(char* last_buf, int& msgCount, int& maxMessages, std::string& last_output)
+{
+    ImGui::BeginDisabled(is_blank(last_buf));
+    if (ImGui::Button("Send"))
+    {
+        add_msg_with_cap(msgCount, maxMessages);
+        last_output = dummy_message(last_buf);
+    }
+    ImGui::EndDisabled();
+}
+
+void draw_msx_box(char* buf, std::string& output, size_t bufSize)
 {
     const ImGuiStyle& style = ImGui::GetStyle();
     const float lineH = ImGui::GetTextLineHeight();
@@ -189,8 +200,10 @@ void draw_msx_box(char* buf, std::string& output, size_t bufSize, int& msgCount,
 
     textH = std::clamp(textH, lineH * minLines, lineH * maxLines);
     const float boxH = textH + style.FramePadding.y * 2;
-    ImGui::InputTextMultiline("##input", buf, bufSize, ImVec2(-FLT_MIN, boxH),
-                              ImGuiInputTextFlags_WordWrap);
+    ImGuiInputTextFlags flags = ImGuiInputTextFlags_WordWrap;
+    if (!output.empty())
+        flags |= ImGuiInputTextFlags_ReadOnly;
+    ImGui::InputTextMultiline("##input", buf, bufSize, ImVec2(-FLT_MIN, boxH), flags);
     // On the Switch, tapping (or pressing A on) the box opens the system keyboard instead.
     if (ImGui::IsItemActivated() && platform_has_keyboard())
     {
@@ -205,14 +218,6 @@ void draw_msx_box(char* buf, std::string& output, size_t bufSize, int& msgCount,
     {
         ImGui::TextWrapped("%s", output.c_str());
     }
-
-    ImGui::BeginDisabled(is_blank(buf));
-    if (ImGui::Button("Send"))
-    {
-        add_msg_with_cap(msgCount, maxMessages);
-        output = dummy_message(buf);
-    }
-    ImGui::EndDisabled();
 }
 void ui_present()
 {
@@ -236,9 +241,10 @@ void ui_present()
         for (int i = 0; i < msgCount; ++i)
         {
             ImGui::PushID(i);
-            draw_msx_box(text[i], output[i], IM_COUNTOF(text[i]), msgCount, maxMessages);
+            draw_msx_box(text[i], output[i], IM_COUNTOF(text[i]));
             ImGui::PopID();
         }
+        draw_send_box(text[msgCount - 1], msgCount, maxMessages, output[msgCount - 1]);
         ImGui::Checkbox("Show ImGui demo window", &g_showDemo);
         ImGui::End();
     }
