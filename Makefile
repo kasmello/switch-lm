@@ -51,7 +51,9 @@ DATA		:=	data
 INCLUDES	:=	include third_party/imgui third_party/imgui/backends
 APP_TITLE	:=	SwitchLM
 APP_AUTHOR	:=	Karmel
-#ROMFS	:=	romfs
+ROMFS	:=	romfs
+# GPU compute shaders (*.glsl), compiled by uam to $(ROMFS)/shaders/*.dksh (Switch build only)
+SHADERS	:=	shaders
 
 .DEFAULT_GOAL := all
 DKP_RULES := $(wildcard $(DEVKITPRO)/libnx/switch_rules)
@@ -101,7 +103,7 @@ mac-run: mac
 
 clean:
 	@echo clean ...
-	@rm -fr $(BUILD) $(MAC_OUT) $(TARGET).nro $(TARGET).nacp $(TARGET).elf \
+	@rm -fr $(BUILD) $(MAC_OUT) $(ROMFS)/shaders $(TARGET).nro $(TARGET).nacp $(TARGET).elf \
 		$(TARGET).nsp $(TARGET).nso $(TARGET).npdm
 
 # Dear ImGui is a git submodule; a clone without --recurse-submodules has an empty folder.
@@ -152,7 +154,9 @@ ASFLAGS	:=	-g $(ARCH)
 LDFLAGS	=	-specs=$(DEVKITPRO)/libnx/switch.specs -g $(ARCH) -Wl,-Map,$(notdir $*.map)
 
 # SDL2 + SDL2_ttf link flags come from the Switch pkg-config (they pull in EGL, freetype, etc.)
-LIBS	:= $(shell $(PKGCONF) --libs SDL2_ttf sdl2 2>/dev/null) -lnx
+# deko3dd is deko3d's debug build: it validates API usage and logs mistakes. Switch to -ldeko3d
+# (release) once performance matters.
+LIBS	:= $(shell $(PKGCONF) --libs SDL2_ttf sdl2 2>/dev/null) -ldeko3dd -lnx
 
 #---------------------------------------------------------------------------------
 # list of directories containing libraries, this must be the top level containing
@@ -248,10 +252,21 @@ ifneq ($(ROMFS),)
 	export NROFLAGS += --romfsdir=$(CURDIR)/$(ROMFS)
 endif
 
+SHADER_OUT	:=	$(ROMFS)/shaders
+SHADER_DKSH	:=	$(patsubst $(SHADERS)/%.glsl,$(SHADER_OUT)/%.dksh,$(wildcard $(SHADERS)/*.glsl))
+export ROMFS_DEPS	:=	$(foreach f,$(SHADER_DKSH),$(CURDIR)/$(f))
+
 .PHONY: $(BUILD) all
 
 #---------------------------------------------------------------------------------
-all: $(BUILD)
+all: $(SHADER_DKSH) $(BUILD)
+
+$(SHADER_OUT):
+	@mkdir -p $@
+
+$(SHADER_OUT)/%.dksh: $(SHADERS)/%.glsl | $(SHADER_OUT)
+	@echo {comp} $(notdir $<)
+	@uam -s comp -o $@ $<
 
 $(BUILD):
 	@[ -d $@ ] || mkdir -p $@
@@ -271,9 +286,9 @@ ifeq ($(strip $(APP_JSON)),)
 all	:	$(OUTPUT).nro
 
 ifeq ($(strip $(NO_NACP)),)
-$(OUTPUT).nro	:	$(OUTPUT).elf $(OUTPUT).nacp
+$(OUTPUT).nro	:	$(OUTPUT).elf $(OUTPUT).nacp $(ROMFS_DEPS)
 else
-$(OUTPUT).nro	:	$(OUTPUT).elf
+$(OUTPUT).nro	:	$(OUTPUT).elf $(ROMFS_DEPS)
 endif
 
 else

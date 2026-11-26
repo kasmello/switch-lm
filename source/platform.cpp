@@ -23,6 +23,8 @@ void platform_init()
     if (g_sockets)
         g_nxlinkSock = nxlinkStdio();
 
+    romfsInit(); // romfs:/ holds the app's bundled files (e.g. compiled GPU shaders)
+
     padConfigureInput(1, HidNpadStyleSet_NpadStandard);
     padInitializeDefault(&g_pad);
     g_plReady = R_SUCCEEDED(plInitialize(PlServiceType_User)); // shared system fonts
@@ -40,6 +42,7 @@ void platform_exit()
 {
     if (g_plReady)
         plExit();
+    romfsExit();
     if (g_nxlinkSock >= 0)
         close(g_nxlinkSock);
     if (g_sockets)
